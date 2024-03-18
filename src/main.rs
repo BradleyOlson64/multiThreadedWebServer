@@ -26,7 +26,7 @@ fn open_connections() -> std::io::Result<()> {
         pool.execute(|| -> std::io::Result<()> {
             handle_connection(stream)?;
             Ok(())
-        });
+        })?;
     }
     Ok(())
 }
