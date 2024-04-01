@@ -4,6 +4,8 @@ use std::io::{prelude::*, BufReader};
 use std::net::{TcpListener, TcpStream};
 use std::thread;
 use std::time::Duration;
+extern crate threads_pool;
+use threads_pool::*;
 
 const HTTP_VERSION: &str = "HTTP/1.1";
 fn main() {
@@ -27,6 +29,24 @@ fn open_connections() -> std::io::Result<()> {
             handle_connection(stream)?;
             Ok(())
         })?;
+    }
+
+    println!("Shutting down.");
+    Ok(())
+}
+
+/// An alternative implementation using the threads_pool
+/// crate.
+fn open_connections_other_impl() -> std::io::Result<()> {
+    let listener = TcpListener::bind("127.0.0.1:7878")
+        .map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err))?;
+    let pool = threads_pool::ThreadPool::new(2);
+
+    for stream in listener.incoming().take(5) {
+        let stream = stream?;
+        let _ = pool.execute(|| {
+            let _ = handle_connection(stream);
+        });
     }
 
     println!("Shutting down.");
@@ -60,7 +80,6 @@ fn handle_connection(mut stream: TcpStream) -> std::io::Result<()> {
         _ => (),
     }
 
-    //println!("Request: {:#?}", http_request);
     Ok(())
 }
 
@@ -108,4 +127,20 @@ enum RequestType {
     InvalidFormat,
     InvalidNotGet,
     WrongHTMLVersion,
+}
+
+#[cfg(test)]
+mod tests{
+    use crate::open_connections_other_impl;
+
+    #[test]
+    fn other_pool_impl() {
+        match open_connections_other_impl().err() {
+            Some(err) => {
+                println!("{:?}", err);
+                panic!();
+            },
+            None => (),
+        }
+    }
 }
