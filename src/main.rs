@@ -21,13 +21,15 @@ fn open_connections() -> std::io::Result<()> {
         .map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err))?;
     let pool = ThreadPool::build(2)?;
 
-    for stream in listener.incoming() {
+    for stream in listener.incoming().take(2) {
         let stream = stream?;
         pool.execute(|| -> std::io::Result<()> {
             handle_connection(stream)?;
             Ok(())
         })?;
     }
+
+    println!("Shutting down.");
     Ok(())
 }
 
